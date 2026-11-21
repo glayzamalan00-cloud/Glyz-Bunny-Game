@@ -165,12 +165,11 @@
   let W = 640, EXTRA = 0, SC = 1;  // W = view width, EXTRA = extra sky on tall screens, SC = picture sharpness
   const DPR = Math.min(2, window.devicePixelRatio || 1);
 
-  // Make the game fill the screen: bigger on computers, taller on phones.
+  // Make the game fill the whole stage area: the stage takes all the free space on the screen.
   function resize() {
-    const app = $('app'), stage = $('stage');
-    const availW = Math.max(240, app.clientWidth - 20);
-    const top = stage.getBoundingClientRect().top + window.scrollY;
-    const availH = Math.max(260, window.innerHeight - top - 90);
+    const stage = $('stage');
+    const availW = Math.max(200, stage.clientWidth);
+    const availH = Math.max(200, stage.clientHeight);
     const A = availW / availH;
     if (A >= 1.6) { W = Math.min(800, Math.round(H * A)); EXTRA = 0; }          // wide screen: see more ahead
     else { W = A < 1.1 ? 520 : 640; EXTRA = Math.max(0, Math.round(W / A - H)); } // tall screen: more sky
@@ -186,6 +185,7 @@
   window.addEventListener('orientationchange', resize);
   window.addEventListener('load', resize);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe($('stage'));
   resize();
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -575,6 +575,16 @@
   });
   $('helpBtn').addEventListener('click', () => { if (!modalOpen()) openMenu('help'); });
 
+  // ================= FULLSCREEN BUTTON =================
+  const fsBtn = $('fsBtn'), rootEl = document.documentElement;
+  if (!(rootEl.requestFullscreen || rootEl.webkitRequestFullscreen)) fsBtn.hidden = true;
+  fsBtn.addEventListener('click', () => {
+    const on = document.fullscreenElement || document.webkitFullscreenElement;
+    if (on) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (rootEl.requestFullscreen || rootEl.webkitRequestFullscreen).call(rootEl);
+    fsBtn.blur();
+  });
+
   // ================= QUIZ =================
   function openQuiz() {
     const srv = platforms[cur];
@@ -721,7 +731,7 @@
   $('nextStageBtn').addEventListener('click', startNextStage);
 
   function fillSummary(sum) {
-        sum.innerHTML = '';
+    sum.innerHTML = '';
     let worst = null, worstPct = 2;
     Object.keys(topicStats).forEach(k => {
       const s = topicStats[k], pct = s.r / s.t;
