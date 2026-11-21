@@ -217,14 +217,21 @@
   $('author').textContent = AUTHOR;
 
   // ================= SOUND (made with the browser, no files needed) =================
-  let audioCtx = null, muted = false;
+  let audioCtx = null, muted = false, musicGain = null, musicVol = 60;
+  try { const mv = parseInt(localStorage.getItem('glyzBunnyMusic')); if (mv >= 0 && mv <= 100) musicVol = mv; } catch (e) {}
   function ensureAudio() {
     if (!audioCtx) {
       try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
     }
+    if (audioCtx && !musicGain) {
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = musicVol / 100 * 0.9;
+      musicGain.connect(audioCtx.destination);
+    }
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    startMusic();
   }
-  function tone(freq, dur, type, vol, slideTo, delay) {
+  function tone(freq, dur, type, vol, slideTo, delay, bus) {
     if (muted || !audioCtx) return;
     const t0 = audioCtx.currentTime + (delay || 0);
     const o = audioCtx.createOscillator();
@@ -234,7 +241,7 @@
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
     g.gain.setValueAtTime(vol || 0.06, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g); g.connect(audioCtx.destination);
+    o.connect(g); g.connect(bus || audioCtx.destination);
     o.start(t0); o.stop(t0 + dur + 0.03);
   }
   const SFX = {
@@ -253,12 +260,150 @@
     hint:   () => { tone(700, 0.1, 'sine', 0.07); tone(1050, 0.16, 'sine', 0.07, null, 0.08); },
     over:   () => [440, 370, 311, 220].forEach((f, i) => tone(f, 0.25, 'triangle', 0.07, null, i * 0.15))
   };
+  // ---- background music: 4 original songs to choose from (made with the browser, no files needed) ----
+  const TRACKS = [
+    { name: '🐰 Bouncy', bpm: 132, drums: 'full', bass: 'bounce', pad: false, lead: 'triangle', leadVol: 0.06, leadDur: 0.22, sparkle: true, echo: false,
+      chords: [                                   // C - G - Am - F
+        { root: 130.81, fifth: 196.00 }, { root: 98.00, fifth: 146.83 },
+        { root: 110.00, fifth: 164.81 }, { root: 87.31, fifth: 130.81 }],
+      melody: [
+        659.25, 0, 783.99, 659.25, 523.25, 0, 659.25, 0,
+        587.33, 0, 783.99, 587.33, 493.88, 0, 587.33, 0,
+        523.25, 0, 659.25, 523.25, 440.00, 0, 523.25, 659.25,
+        440.00, 523.25, 698.46, 523.25, 440.00, 0, 587.33, 783.99] },
+    { name: '🌙 Dreamy', bpm: 74, drums: 'none', bass: 'long', pad: true, lead: 'triangle', leadVol: 0.05, leadDur: 0.6, sparkle: false, echo: true,
+      chords: [                                   // Cmaj7 - Am7 - Fmaj7 - G6
+        { root: 130.81, fifth: 196.00, pad: [329.63, 392.00, 493.88] }, { root: 110.00, fifth: 164.81, pad: [261.63, 329.63, 392.00] },
+        { root: 87.31, fifth: 130.81, pad: [220.00, 261.63, 329.63] }, { root: 98.00, fifth: 146.83, pad: [246.94, 293.66, 329.63] }],
+      melody: [
+        261.63, 0, 329.63, 0, 392.00, 0, 493.88, 392.00,
+        261.63, 0, 329.63, 0, 392.00, 0, 440.00, 392.00,
+        349.23, 0, 440.00, 0, 523.25, 0, 659.25, 523.25,
+        392.00, 0, 493.88, 0, 587.33, 0, 659.25, 587.33] },
+    { name: '🚀 Adventure', bpm: 150, drums: 'full', bass: 'bounce', pad: false, lead: 'square', leadVol: 0.028, leadDur: 0.15, sparkle: false, echo: false,
+      chords: [                                   // G - D - Em - C
+        { root: 98.00, fifth: 146.83 }, { root: 146.83, fifth: 110.00 },
+        { root: 164.81, fifth: 123.47 }, { root: 130.81, fifth: 98.00 }],
+      melody: [
+        587.33, 587.33, 783.99, 0, 880.00, 783.99, 587.33, 0,
+        739.99, 739.99, 880.00, 0, 987.77, 880.00, 739.99, 0,
+        659.25, 659.25, 783.99, 0, 987.77, 783.99, 659.25, 783.99,
+        523.25, 659.25, 783.99, 659.25, 1046.50, 0, 783.99, 0] },
+    { name: '☁️ Chill', bpm: 92, drums: 'soft', bass: 'long', pad: true, lead: 'sine', leadVol: 0.06, leadDur: 0.5, sparkle: false, echo: true,
+      chords: [                                   // Fmaj7 - Em7 - Dm7 - Cmaj7
+        { root: 174.61, fifth: 130.81, pad: [220.00, 261.63, 329.63] }, { root: 164.81, fifth: 123.47, pad: [196.00, 246.94, 293.66] },
+        { root: 146.83, fifth: 110.00, pad: [174.61, 220.00, 261.63] }, { root: 130.81, fifth: 98.00, pad: [246.94, 329.63, 392.00] }],
+      melody: [
+        0, 0, 659.25, 0, 523.25, 0, 440.00, 0,
+        0, 0, 587.33, 0, 493.88, 0, 659.25, 0,
+        0, 0, 523.25, 0, 440.00, 0, 349.23, 0,
+        0, 0, 659.25, 0, 783.99, 0, 659.25, 523.25] }
+  ];
+  let curTrack = 0;
+  try { const ct = parseInt(localStorage.getItem('glyzBunnyTrack')); if (ct >= 0 && ct < TRACKS.length) curTrack = ct; } catch (e) {}
+  let musicTimer = null, musicNext = 0, musicStep = 0, noiseBuf = null;
+  function setTrack(i) {
+    curTrack = i; musicStep = 0; musicNext = 0;
+    try { localStorage.setItem('glyzBunnyTrack', i); } catch (e) {}
+  }
+  function noiseHit(d, dur, vol, ftype, ffreq) {
+    if (muted || !audioCtx || !musicGain) return;
+    if (!noiseBuf) {
+      noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    }
+    const t0 = audioCtx.currentTime + d;
+    const src = audioCtx.createBufferSource();
+    const f = audioCtx.createBiquadFilter();
+    const g = audioCtx.createGain();
+    src.buffer = noiseBuf;
+    f.type = ftype; f.frequency.value = ffreq;
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(musicGain);
+    src.start(t0); src.stop(t0 + dur + 0.02);
+  }
+  function musicTick() {
+    if (!audioCtx || !musicGain || audioCtx.state !== 'running') return;
+    const T = TRACKS[curTrack], step = 60 / T.bpm / 2;
+    const now = audioCtx.currentTime;
+    if (musicNext < now) musicNext = now + 0.05;
+    while (musicNext < now + 0.6) {
+      const pos = musicStep % 32;
+      const ch = T.chords[Math.floor(pos / 8)];
+      const st = pos % 8;
+      const d = musicNext - audioCtx.currentTime;
+      // drums
+      if (T.drums !== 'none') {
+        const full = T.drums === 'full';
+        if (st === 0 || st === 4) tone(150, 0.14, 'sine', full ? 0.11 : 0.06, 45, d, musicGain);
+        if (st === 2 || st === 6) noiseHit(d, 0.09, full ? 0.05 : 0.022, 'bandpass', 1800);
+        if (st % 2 === 1) noiseHit(d, 0.04, full ? 0.03 : 0.015, 'highpass', 7000);
+      }
+      // bass
+      if (T.bass === 'bounce') {
+        if (st === 0) tone(ch.root, 0.2, 'triangle', 0.07, null, d, musicGain);
+        if (st === 2 || st === 6) tone(ch.root * 2, 0.15, 'triangle', 0.05, null, d, musicGain);
+        if (st === 4) tone(ch.fifth, 0.2, 'triangle', 0.07, null, d, musicGain);
+      } else if (st === 0) {
+        tone(ch.root, step * 7, 'sine', 0.07, null, d, musicGain);
+      }
+      // soft pad
+      if (T.pad && st === 0) ch.pad.forEach(f => tone(f, step * 8, 'sine', 0.014, null, d, musicGain));
+      // melody
+      const m = T.melody[pos];
+      if (m) {
+        tone(m, T.leadDur, T.lead, T.leadVol, null, d, musicGain);
+        if (T.sparkle) tone(m * 2, 0.12, 'sine', 0.014, null, d, musicGain);
+        if (T.echo) tone(m, 0.6, 'sine', T.leadVol * 0.4, null, d + step * 2, musicGain);
+      }
+      musicNext += step;
+      musicStep++;
+    }
+  }
+  function startMusic() {
+    if (!musicTimer && audioCtx) musicTimer = setInterval(musicTick, 200);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!audioCtx) return;
+    if (document.hidden) audioCtx.suspend(); else audioCtx.resume();
+  });
+
   window.addEventListener('pointerdown', ensureAudio, { passive: true });
   window.addEventListener('keydown', ensureAudio);
   $('muteBtn').addEventListener('click', () => {
     muted = !muted;
     $('muteBtn').innerHTML = muted ? '&#128263;' : '&#128266;';
     $('muteBtn').blur();
+  });
+
+  // ---- music volume slider ----
+  const volBtn = $('volBtn'), volPanel = $('volPanel'), volRange = $('musicVol'), volVal = $('musicVolVal');
+  volRange.value = musicVol;
+  volVal.textContent = musicVol;
+  volBtn.addEventListener('click', () => { volPanel.hidden = !volPanel.hidden; volBtn.blur(); });
+  volRange.addEventListener('input', () => {
+    musicVol = parseInt(volRange.value) || 0;
+    volVal.textContent = musicVol;
+    if (musicGain) musicGain.gain.setTargetAtTime(musicVol / 100 * 0.9, audioCtx.currentTime, 0.02);
+    try { localStorage.setItem('glyzBunnyMusic', musicVol); } catch (e) {}
+  });
+  const trackList = $('trackList');
+  function buildTracks() {
+    trackList.innerHTML = '';
+    TRACKS.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'trk' + (i === curTrack ? ' active' : '');
+      b.textContent = t.name;
+      b.addEventListener('click', () => { setTrack(i); buildTracks(); });
+      trackList.appendChild(b);
+    });
+  }
+  buildTracks();
+  window.addEventListener('pointerdown', e => {
+    if (!volPanel.hidden && !volPanel.contains(e.target) && e.target !== volBtn) volPanel.hidden = true;
   });
 
   // ================= STATE =================

@@ -22,6 +22,7 @@
       <div class="stat">&#11088;<b id="sPackets">0</b></div>
       <div class="stat">&#128161;<b id="sHints">0</b></div>
       <div class="stat">Best<b id="sBest">0</b></div>
+      <button id="volBtn" class="icon-btn" aria-label="Music volume" title="Music volume">&#127925;</button>
       <button id="muteBtn" class="icon-btn" aria-label="Sound on/off" title="Sound on/off">&#128266;</button>
       <button id="fsBtn" class="icon-btn" aria-label="Fullscreen" title="Fullscreen">&#9974;</button>
       <button id="helpBtn" class="icon-btn" aria-label="How to play" title="How to play">?</button>
@@ -31,6 +32,15 @@
   <div id="stage">
     <canvas id="game"></canvas>
     <div id="toast"></div>
+    <div id="volPanel" hidden>
+      <div class="vrow">
+        <span>&#127925;</span>
+        <input type="range" id="musicVol" min="0" max="100" value="60" aria-label="Music volume">
+        <b id="musicVolVal">60</b>
+      </div>
+      <div class="vlabel">Choose a song:</div>
+      <div id="trackList"></div>
+    </div>
   </div>
 
   <p class="hint">Hold <b>mouse / touch / SPACE</b> to stretch the cable &bull; Release to drop it &bull; <b>Tap again to JUMP</b> while hopping</p>
