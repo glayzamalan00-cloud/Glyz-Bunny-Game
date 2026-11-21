@@ -165,6 +165,8 @@
   let W = 640, EXTRA = 0, SC = 1;  // W = view width, EXTRA = extra sky on tall screens, SC = picture sharpness
   const DPR = Math.min(2, window.devicePixelRatio || 1);
 
+  let START_RIGHT = 120;           // where the bunny stands on screen (smaller on narrow phones)
+
   // Make the game fill the whole stage area: the stage takes all the free space on the screen.
   function resize() {
     const stage = $('stage');
@@ -172,7 +174,8 @@
     const availH = Math.max(200, stage.clientHeight);
     const A = availW / availH;
     if (A >= 1.6) { W = Math.min(800, Math.round(H * A)); EXTRA = 0; }          // wide screen: see more ahead
-    else { W = A < 1.1 ? 520 : 640; EXTRA = Math.max(0, Math.round(W / A - H)); } // tall screen: more sky
+    else { W = A < 0.8 ? 340 : A < 1.1 ? 520 : 640; EXTRA = Math.max(0, Math.round(W / A - H)); } // tall screen: more sky
+    START_RIGHT = W < 450 ? 70 : 120;
     const ar = W / (H + EXTRA);
     const cssW = Math.min(availW, availH * ar);
     canvas.style.width = Math.floor(cssW) + 'px';
@@ -192,7 +195,6 @@
   const FONT = '"Baloo 2", "Trebuchet MS", Arial, sans-serif';
   const GROUND_Y = 290;
   const HERO_W = 26, HERO_H = 30;
-  const START_RIGHT = 120;
   const MAX_STICK = 400;
   const OUTLINE = '#5b2a9e';
   // Each server name belongs to a topic: landing on it asks a question about that topic.
