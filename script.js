@@ -161,10 +161,32 @@
   // ================= BASIC SETUP =================
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d');
-  const W = 640, H = 400;
+  const H = 400;                   // height of the game scene (the ground is always at the same spot)
+  let W = 640, EXTRA = 0, SC = 1;  // W = view width, EXTRA = extra sky on tall screens, SC = picture sharpness
   const DPR = Math.min(2, window.devicePixelRatio || 1);
-  canvas.width = W * DPR;
-  canvas.height = H * DPR;
+
+  // Make the game fill the screen: bigger on computers, taller on phones.
+  function resize() {
+    const app = $('app'), stage = $('stage');
+    const availW = Math.max(240, app.clientWidth - 20);
+    const top = stage.getBoundingClientRect().top + window.scrollY;
+    const availH = Math.max(260, window.innerHeight - top - 90);
+    const A = availW / availH;
+    if (A >= 1.6) { W = Math.min(800, Math.round(H * A)); EXTRA = 0; }          // wide screen: see more ahead
+    else { W = A < 1.1 ? 520 : 640; EXTRA = Math.max(0, Math.round(W / A - H)); } // tall screen: more sky
+    const ar = W / (H + EXTRA);
+    const cssW = Math.min(availW, availH * ar);
+    canvas.style.width = Math.floor(cssW) + 'px';
+    canvas.style.height = Math.floor(cssW / ar) + 'px';
+    SC = Math.min(DPR * cssW / W, 3);
+    canvas.width = Math.round(W * SC);
+    canvas.height = Math.round((H + EXTRA) * SC);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  window.addEventListener('load', resize);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+  resize();
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   const FONT = '"Baloo 2", "Trebuchet MS", Arial, sans-serif';
@@ -387,11 +409,11 @@
 
   // ================= BACKGROUND DATA =================
   const CLOUDS = [];
-  for (let i = 0; i < 7; i++) CLOUDS.push({ x: i * 135 + rand(0, 60), y: rand(25, 130), s: rand(0.7, 1.3) });
+  for (let i = 0; i < 7; i++) CLOUDS.push({ x: i * 135 + rand(0, 60), y: rand(25, 130), s: rand(0.7, 1.3), e: Math.random() });
   const SPARKS = [];
-  for (let i = 0; i < 28; i++) SPARKS.push({ x: rand(0, W), y: rand(10, 200), r: rand(2, 4.5), p: rand(0, 6) });
+  for (let i = 0; i < 28; i++) SPARKS.push({ x: rand(0, 900), y: rand(10, 200), r: rand(2, 4.5), p: rand(0, 6), e: Math.random() });
   const BUBBLES = [];
-  for (let i = 0; i < 16; i++) BUBBLES.push({ x: rand(0, W), y: rand(0, H), r: rand(3, 9), v: rand(0.2, 0.7) });
+  for (let i = 0; i < 16; i++) BUBBLES.push({ x: rand(0, 900), y: rand(0, H), r: rand(3, 9), v: rand(0.2, 0.7) });
 
   // ================= QUESTION DECK =================
   function buildDeck() {
@@ -1025,7 +1047,7 @@
   }
 
   function drawBody(wd, t) {
-    const b = wd.body, mx = b.x, my = b.y;
+    const b = wd.body, mx = W - (640 - b.x), my = b.y - EXTRA * 0.3;
     const mg = ctx.createRadialGradient(mx, my, b.r * 0.5, mx, my, b.r * 3);
     mg.addColorStop(0, b.glow + '0.7)');
     mg.addColorStop(1, b.glow + '0)');
@@ -1057,19 +1079,19 @@
   function drawBackground(t) {
     const wd = WORLDS[(level - 1) % WORLDS.length];
     // soft pastel sky
-    const g = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    const g = ctx.createLinearGradient(0, -EXTRA, 0, GROUND_Y);
     g.addColorStop(0, col('top'));
     g.addColorStop(0.6, col('mid'));
     g.addColorStop(1, col('bot'));
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-20, -EXTRA - 20, W + 40, H + EXTRA + 40);
 
     // twinkly sparkles
     SPARKS.slice(0, wd.sparks).forEach(s => {
-      const x = (((s.x - camX * 0.06) % W) + W) % W;
+      const x = (((s.x - camX * 0.06) % 900) + 900) % 900;
       const a = 0.35 + 0.65 * Math.abs(Math.sin(t / 700 + s.p));
       ctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(2) + ')';
-      sparklePath(x, s.y, s.r * (0.6 + 0.4 * a));
+      sparklePath(x, s.y - s.e * EXTRA, s.r * (0.6 + 0.4 * a));
       ctx.fill();
     });
 
@@ -1090,7 +1112,7 @@
     // fluffy clouds
     CLOUDS.slice(0, wd.clouds).forEach(c => {
       const x = (((c.x - camX * 0.1 + t * 0.006) % 900) + 900) % 900 - 130;
-      drawCloud(x, c.y, c.s);
+      drawCloud(x, c.y - c.e * EXTRA, c.s);
     });
 
     // rolling hills
@@ -1107,7 +1129,7 @@
     ctx.lineWidth = 2;
     BUBBLES.forEach(b => {
       const y = GROUND_Y + (((b.y - t * b.v * 0.06 - GROUND_Y) % (H - GROUND_Y)) + (H - GROUND_Y)) % (H - GROUND_Y);
-      const x = (((b.x - camX * 0.5) % W) + W) % W;
+      const x = (((b.x - camX * 0.5) % 900) + 900) % 900;
       ctx.beginPath(); ctx.arc(x, y, b.r, 0, Math.PI * 2); ctx.stroke();
     });
   }
@@ -1525,7 +1547,7 @@
   }
 
   function draw(t) {
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.setTransform(SC, 0, 0, SC, 0, EXTRA * SC);
     if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
     drawBackground(t);
 
@@ -1564,7 +1586,7 @@
     ctx.restore();
 
     // ---- screen-space UI (no shake) ----
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.setTransform(SC, 0, 0, SC, 0, 0);
 
     // level badge
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -1590,6 +1612,8 @@
     ctx.fillStyle = '#5b2a9e';
     ctx.fillText(wdn.emoji + ' ' + wdn.name, 10, 62);
 
+    ctx.save();
+    ctx.translate(0, EXTRA);
     if (levelText) {
       ctx.globalAlpha = Math.min(1, levelText.t / 30);
       bigText('STAGE ' + level + '!', W / 2, 115, 44, '#ffffff', '#8b5cf6');
@@ -1610,9 +1634,11 @@
       ctx.globalAlpha = 1;
     }
 
+    ctx.restore();
+
     if (flash > 0) {
       ctx.fillStyle = 'rgba(255,111,160,' + flash.toFixed(2) + ')';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W, H + EXTRA);
     }
   }
 
