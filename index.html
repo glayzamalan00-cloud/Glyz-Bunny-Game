@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glyz Bunny: Cable Crossing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <header id="hud">
+    <div class="brand">GLYZ BUNNY<span class="dot"> &#9829;</span><span>Cable Crossing</span></div>
+    <div class="stats">
+      <div class="stat">Score<b id="sScore">0</b></div>
+      <div class="stat" id="sLives" aria-label="Lives"></div>
+      <div class="stat shield" id="sShield" hidden>&#128737; Shield</div>
+      <div class="stat combo" id="sCombo" hidden>&#10024; Perfect<b id="sComboN">x2</b></div>
+      <div class="stat">Streak<b id="sStreak">0</b></div>
+      <div class="stat">&#11088;<b id="sPackets">0</b></div>
+      <div class="stat">&#128161;<b id="sHints">0</b></div>
+      <div class="stat">Best<b id="sBest">0</b></div>
+      <button id="muteBtn" class="icon-btn" aria-label="Sound on/off" title="Sound on/off">&#128266;</button>
+      <button id="helpBtn" class="icon-btn" aria-label="How to play" title="How to play">?</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="toast"></div>
+  </div>
+
+  <p class="hint">Hold <b>mouse / touch / SPACE</b> to stretch the cable &bull; Release to drop it &bull; <b>Tap again to JUMP</b> while hopping</p>
+  <p class="foot">Made by <span id="author"></span></p>
+</div>
+
+<!-- START / HELP -->
+<div class="modal" id="menuModal">
+  <div class="card">
+    <div class="mascot">&#128048;</div>
+    <h1 id="menuTitle">Glyz Bunny: Cable Crossing</h1>
+    <p>Help Glyz Bunny connect all the servers! Stretch cables, hop over bugs, collect stars and answer IT questions to stay online.</p>
+    <h2>How to play</h2>
+    <ol>
+      <li><b>Hold</b> to stretch the cable. <b>Release</b> to drop it.</li>
+      <li>Land on the glowing pink port for a <b>PERFECT</b>. Chain perfects for bigger bonuses!</li>
+      <li><b>Bugs</b> guard the cable! <b>Tap / SPACE while hopping to JUMP</b> over crawling bugs. From level 3 they move, and from level 4 <b>flying bugs</b> appear. Don't jump into those, wait for them to pass!</li>
+      <li>Collect <b>stars</b> for points. Every 8 stars = <b>1 hint &#128161;</b>.</li>
+      <li>Grab the <b>shield bubble</b> to block one bug.</li>
+      <li>After each connection, answer a question about the <b>server you just connected to</b> (a DNS server asks about DNS!) <b>before time runs out</b>. Use a &#128161; hint to remove 2 wrong answers.</li>
+      <li>3 correct answers in a row = <b>+1 life</b> (max 3).</li>
+      <li>Reach the <b>GOAL server</b> (checkered line + flag) to clear the stage! Its question is worth <b>double</b>. Every stage is a new world with new surprises.</li>
+      <li>Clear all <b>5 worlds</b> to win the game! Then you can keep going in <b>Endless mode</b>.</li>
+    </ol>
+    <div id="topicBox">
+      <div class="label">Choose a topic (the servers will match it):</div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <button class="btn pink full" id="startBtn">Start Game</button>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div class="modal" id="quizModal" hidden>
+  <div class="card">
+    <div class="qhead">
+      <span class="badge" id="qTopic"></span>
+      <button class="btn secondary small" id="hintBtn" type="button">&#128161; 50/50 (<span id="hintN">0</span>)</button>
+    </div>
+    <div id="qTimer"><div id="qTimerFill"></div></div>
+    <div id="qText"></div>
+    <div id="qOpts"></div>
+    <div id="qFeedback" hidden></div>
+    <button class="btn full" id="qContinue" hidden>Continue</button>
+    <p style="font-size:13px;margin-top:10px">Tip: press 1-4 to answer, H for a hint.</p>
+  </div>
+</div>
+
+<!-- STAGE CLEAR -->
+<div class="modal" id="stageModal" hidden>
+  <div class="card">
+    <div class="mascot">&#127937;</div>
+    <h2 style="text-align:center" id="stTitle">Stage Clear!</h2>
+    <div class="big-stats">
+      <div>Stars<b id="stStars">0</b></div>
+      <div>Perfect<b id="stPerfect">0</b></div>
+      <div>Quiz<b id="stQuiz">0/0</b></div>
+      <div>Bonus<b id="stBonus">+0</b></div>
+    </div>
+    <p id="stNext" style="text-align:center"></p>
+    <button class="btn pink full" id="nextStageBtn">Next stage &#10140;</button>
+  </div>
+</div>
+
+<!-- YOU WIN -->
+<div class="modal" id="winModal" hidden>
+  <div class="card">
+    <div class="mascot">&#127942;</div>
+    <h1 style="text-align:center">You Win!</h1>
+    <p style="text-align:center">Glyz Bunny connected every server in all 5 worlds!</p>
+    <div class="rank" id="winBadge" style="text-align:center"></div>
+    <div class="big-stats">
+      <div>Score<b id="winScore">0</b></div>
+      <div>Best<b id="winBest">0</b></div>
+      <div>Quiz<b id="winQuiz">0/0</b></div>
+      <div>Stars<b id="winStars">0</b></div>
+    </div>
+    <div class="label">Your skills by topic:</div>
+    <div id="winSummary"></div>
+    <div class="row">
+      <button class="btn pink" id="winEndless">Endless mode</button>
+      <button class="btn secondary" id="winAgain">Play again</button>
+    </div>
+    <button class="btn secondary full" id="winMenu">Main menu</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="modal" id="overModal" hidden>
+  <div class="card">
+    <div class="mascot">&#128567;</div>
+    <h2 style="text-align:center">Oh no, disconnected!</h2>
+    <div class="rank" style="text-align:center" id="goRank"></div>
+    <div class="big-stats">
+      <div>Score<b id="goScore">0</b></div>
+      <div>Best<b id="goBest">0</b></div>
+      <div>Quiz<b id="goQuiz">0/0</b></div>
+      <div>Stars<b id="goPackets">0</b></div>
+      <div>Servers<b id="goServers">0</b></div>
+    </div>
+    <div id="summaryBox" hidden>
+      <div class="label">Your skills by topic:</div>
+      <div id="topicSummary"></div>
+    </div>
+    <div id="missedBox" hidden>
+      <div class="label">Review these (questions you missed):</div>
+      <ul id="missedList"></ul>
+    </div>
+    <div class="row">
+      <button class="btn pink" id="againBtn">Play again</button>
+      <button class="btn secondary" id="menuBtn">Main menu</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
